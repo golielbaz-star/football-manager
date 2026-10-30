@@ -86,11 +86,7 @@ export default function TeamGenerator({ session, group, rsvps }) {
 
       {/* Team Cards */}
       {generated && teams.map(team => (
-        <TeamCard
-          key={team.id}
-          team={team}
-          matchIndices={teamMatchesMap[team.id] || []}
-        />
+        <TeamCard key={team.id} team={team} />
       ))}
 
       {/* Match Schedule */}
@@ -146,6 +142,16 @@ export default function TeamGenerator({ session, group, rsvps }) {
   )
 }
 
+// Full GK rotation list for a team — all players sorted weakest→strongest
+function getFullGKRotation(team) {
+  if (team.goalkeeper && !team.goalkeeper._subKeeper) {
+    return [team.goalkeeper] // dedicated keeper — always them
+  }
+  return team.players
+    .filter(p => !p.is_goalkeeper)
+    .sort((a, b) => (a.skill_level || 3) - (b.skill_level || 3))
+}
+
 // GK rotation: dedicated keeper always plays; otherwise rotate weakest→strongest
 function getRotatingGK(team, matchIndexForThisTeam) {
   if (team.goalkeeper && !team.goalkeeper._subKeeper) {
@@ -158,11 +164,8 @@ function getRotatingGK(team, matchIndexForThisTeam) {
   return outfield[matchIndexForThisTeam % outfield.length]
 }
 
-function TeamCard({ team, matchIndices }) {
+function TeamCard({ team }) {
   const stats = getTeamStats(team)
-
-  // Build GK rotation list for this team
-  const gkRotation = matchIndices.map((_, idx) => getRotatingGK(team, idx))
 
   return (
     <div className={`bg-white rounded-2xl shadow-sm border-2 ${team.color.border} overflow-hidden`}>
@@ -177,23 +180,21 @@ function TeamCard({ team, matchIndices }) {
         </div>
       </div>
 
-      {/* GK Rotation List */}
-      {gkRotation.length > 0 && (
-        <div className="px-4 pt-3 pb-1">
-          <p className="text-xs font-bold text-gray-500 mb-2">🧤 סדר שוערים</p>
-          <div className="space-y-1">
-            {gkRotation.map((gk, idx) => (
-              <div key={idx} className="flex items-center gap-2 bg-orange-50 rounded-lg px-3 py-1.5">
-                <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center">
-                  {idx + 1}
-                </span>
-                <span className="text-sm font-medium text-orange-800 flex-1">{gk?.name}</span>
-                <span className="text-xs text-orange-400">רמה {gk?.skill_level}</span>
-              </div>
-            ))}
-          </div>
+      {/* GK Rotation List — full cycle, all players */}
+      <div className="px-4 pt-3 pb-1">
+        <p className="text-xs font-bold text-gray-500 mb-2">🧤 סדר שוערים (סבב מלא)</p>
+        <div className="space-y-1">
+          {getFullGKRotation(team).map((gk, idx) => (
+            <div key={idx} className="flex items-center gap-2 bg-orange-50 rounded-lg px-3 py-1.5">
+              <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center">
+                {idx + 1}
+              </span>
+              <span className="text-sm font-medium text-orange-800 flex-1">{gk?.name}</span>
+              <span className="text-xs text-orange-400">רמה {gk?.skill_level}</span>
+            </div>
+          ))}
         </div>
-      )}
+      </div>
 
       {/* Players */}
       <div className="p-4 pt-3 space-y-1">
