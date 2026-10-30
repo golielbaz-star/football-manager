@@ -40,6 +40,7 @@ export async function updateSessionDate(sessionId, date) {
 }
 
 export async function deleteSession(sessionId) {
+  await supabase.from('rsvps').delete().eq('session_id', sessionId)
   const { error } = await supabase
     .from('game_sessions')
     .delete()

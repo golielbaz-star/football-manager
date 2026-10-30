@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { Shuffle, Star, Zap, Users } from 'lucide-react'
+import { Shuffle, Star, Zap, Users, LayoutGrid, Rows3 } from 'lucide-react'
 import { generateTeams, getTeamStats, generateMatchSchedule } from '../../utils/teamBalancer'
+import FieldView from './FieldView'
 
 export default function TeamGenerator({ session, group, rsvps }) {
   const [teams, setTeams] = useState([])
   const [generated, setGenerated] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [viewMode, setViewMode] = useState('cards') // 'cards' | 'pitch'
 
   const arrivedPlayers = rsvps.filter(r => r.arrived).map(r => r.players).filter(Boolean)
   const playersPerTeam = group.players_per_team || 5
@@ -35,8 +37,8 @@ export default function TeamGenerator({ session, group, rsvps }) {
 
   const matches = generated ? generateMatchSchedule(teams) : []
 
-  // Build GK rotation per team across all matches they play in
-  const teamMatchesMap = {} // teamId → [matchIndex, ...]
+  // Build team→matches map for GK rotation
+  const teamMatchesMap = {}
   if (generated) {
     matches.forEach((match, i) => {
       if (!teamMatchesMap[match.home.id]) teamMatchesMap[match.home.id] = []
@@ -84,13 +86,46 @@ export default function TeamGenerator({ session, group, rsvps }) {
         <p className="text-center text-gray-500 text-sm">יש לסמן לפחות 2 שחקנים כ"הגיע"</p>
       )}
 
-      {/* Team Cards */}
-      {generated && teams.map(team => (
+      {/* View toggle */}
+      {generated && (
+        <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
+          <button
+            onClick={() => setViewMode('cards')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+              viewMode === 'cards' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'
+            }`}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            כרטיסיות
+          </button>
+          <button
+            onClick={() => setViewMode('pitch')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+              viewMode === 'pitch' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'
+            }`}
+          >
+            <span className="text-base leading-none">⚽</span>
+            מגרש
+          </button>
+        </div>
+      )}
+
+      {/* Pitch view */}
+      {generated && viewMode === 'pitch' && (
+        <FieldView
+          teams={teams}
+          matches={matches}
+          teamMatchesMap={teamMatchesMap}
+        />
+      )}
+
+      {/* Cards view */}
+      {generated && viewMode === 'cards' && teams.map(team => (
         <TeamCard key={team.id} team={team} />
       ))}
 
-      {/* Match Schedule */}
-      {generated && matches.length > 0 && (
+      {/* Match Schedule (cards view only) */}
+      {generated && viewMode === 'cards' && matches.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm p-5">
           <h3 className="font-bold text-gray-800 mb-4">🏆 סדר משחקים</h3>
           <div className="space-y-4">
@@ -103,7 +138,6 @@ export default function TeamGenerator({ session, group, rsvps }) {
 
               return (
                 <div key={i} className="border-2 border-gray-100 rounded-2xl overflow-hidden">
-                  {/* Match header */}
                   <div className="bg-gray-800 px-4 py-2 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-white text-gray-800 flex items-center justify-center text-xs font-bold">
                       {i + 1}
@@ -119,7 +153,6 @@ export default function TeamGenerator({ session, group, rsvps }) {
                       </span>
                     )}
                   </div>
-                  {/* GK row */}
                   <div className="grid grid-cols-2 divide-x divide-x-reverse divide-gray-100">
                     <div className="px-3 py-2.5">
                       <p className={`text-xs font-medium mb-0.5 ${match.home.color.text}`}>{match.home.name}</p>
@@ -142,21 +175,8 @@ export default function TeamGenerator({ session, group, rsvps }) {
   )
 }
 
-// Full GK rotation list for a team — all players sorted weakest→strongest
-function getFullGKRotation(team) {
-  if (team.goalkeeper && !team.goalkeeper._subKeeper) {
-    return [team.goalkeeper] // dedicated keeper — always them
-  }
-  return team.players
-    .filter(p => !p.is_goalkeeper)
-    .sort((a, b) => (a.skill_level || 3) - (b.skill_level || 3))
-}
-
-// GK rotation: dedicated keeper always plays; otherwise rotate weakest→strongest
 function getRotatingGK(team, matchIndexForThisTeam) {
-  if (team.goalkeeper && !team.goalkeeper._subKeeper) {
-    return team.goalkeeper
-  }
+  if (team.goalkeeper && !team.goalkeeper._subKeeper) return team.goalkeeper
   const outfield = team.players
     .filter(p => !p.is_goalkeeper)
     .sort((a, b) => (a.skill_level || 3) - (b.skill_level || 3))
@@ -164,12 +184,20 @@ function getRotatingGK(team, matchIndexForThisTeam) {
   return outfield[matchIndexForThisTeam % outfield.length]
 }
 
+function getFullGKRotation(team) {
+  if (team.goalkeeper && !team.goalkeeper._subKeeper) {
+    return [team.goalkeeper]
+  }
+  return team.players
+    .filter(p => !p.is_goalkeeper)
+    .sort((a, b) => (a.skill_level || 3) - (b.skill_level || 3))
+}
+
 function TeamCard({ team }) {
   const stats = getTeamStats(team)
 
   return (
     <div className={`bg-white rounded-2xl shadow-sm border-2 ${team.color.border} overflow-hidden`}>
-      {/* Header */}
       <div className={`${team.color.bg} px-5 py-3 flex items-center justify-between`}>
         <h3 className={`font-bold text-lg ${team.color.text}`}>{team.name}</h3>
         <div className="flex items-center gap-3 text-sm">
@@ -180,7 +208,6 @@ function TeamCard({ team }) {
         </div>
       </div>
 
-      {/* GK Rotation List — full cycle, all players */}
       <div className="px-4 pt-3 pb-1">
         <p className="text-xs font-bold text-gray-500 mb-2">🧤 סדר שוערים (סבב מלא)</p>
         <div className="space-y-1">
@@ -196,7 +223,6 @@ function TeamCard({ team }) {
         </div>
       </div>
 
-      {/* Players */}
       <div className="p-4 pt-3 space-y-1">
         <p className="text-xs font-bold text-gray-500 mb-2">שחקנים</p>
         {team.players.map(player => (
