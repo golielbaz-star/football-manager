@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Users, Plus, Calendar, Star, Zap, Trash2, Edit2, Check, X, MapPin, Shuffle, UserPlus } from 'lucide-react'
-import { getPlayersByGroup } from '../../services/playerService'
+import { getPlayersByGroup, addGuestPlayer, deletePlayer } from '../../services/playerService'
 import { createSession, updateSessionDate, deleteSession } from '../../services/sessionService'
 import { getRSVPs, markArrived, upsertRSVP } from '../../services/rsvpService'
 
@@ -13,6 +13,10 @@ export default function AdminScreen({ group, gameSession, onSessionCreated, onNa
   const [newDate, setNewDate] = useState('')
   const [savingDate, setSavingDate] = useState(false)
   const [showAddPlayer, setShowAddPlayer] = useState(false)
+  const [showGuestForm, setShowGuestForm] = useState(false)
+  const [guestName, setGuestName] = useState('')
+  const [guestSkill, setGuestSkill] = useState(3)
+  const [addingGuest, setAddingGuest] = useState(false)
   const [tab, setTab] = useState('field')
 
   const loadData = async () => {
@@ -28,21 +32,13 @@ export default function AdminScreen({ group, gameSession, onSessionCreated, onNa
 
   useEffect(() => { loadData() }, [group?.admin_phone, gameSession?.id])
 
-  // Players who arrived
   const arrivedIds = new Set(rsvps.filter(r => r.arrived).map(r => r.player_id))
-  // Players who RSVPed (attending)
-  const rsvpMap = Object.fromEntries(rsvps.map(r => [r.player_id, r]))
   const arrivedCount = arrivedIds.size
-
-  // Players NOT yet marked as arrived (to add manually)
   const notArrivedPlayers = players.filter(p => !arrivedIds.has(p.id))
 
   const handleToggleArrived = async (playerId, currentArrived) => {
     await markArrived({ sessionId: gameSession.id, playerId, arrived: !currentArrived })
-    // also mark as attending if not already
-    if (!currentArrived) {
-      await upsertRSVP({ sessionId: gameSession.id, playerId, attending: true })
-    }
+    if (!currentArrived) await upsertRSVP({ sessionId: gameSession.id, playerId, attending: true })
     await loadData()
   }
 
@@ -53,6 +49,36 @@ export default function AdminScreen({ group, gameSession, onSessionCreated, onNa
     setShowAddPlayer(false)
   }
 
+  const handleAddGuest = async () => {
+    if (!guestName.trim()) return
+    setAddingGuest(true)
+    try {
+      const guest = await addGuestPlayer({ adminPhone: group.admin_phone, name: guestName.trim(), skill_level: guestSkill })
+      if (gameSession) {
+        await upsertRSVP({ sessionId: gameSession.id, playerId: guest.id, attending: true })
+        await markArrived({ sessionId: gameSession.id, playerId: guest.id, arrived: true })
+      }
+      setGuestName('')
+      setGuestSkill(3)
+      setShowGuestForm(false)
+      await loadData()
+    } catch (e) {
+      alert('שגיאה: ' + e.message)
+    } finally {
+      setAddingGuest(false)
+    }
+  }
+
+  const handleDeletePlayer = async (playerId, name) => {
+    if (!confirm(`למחוק את ${name} מהקבוצה?`)) return
+    try {
+      await deletePlayer(playerId)
+      await loadData()
+    } catch (e) {
+      alert('שגיאה במחיקה: ' + e.message)
+    }
+  }
+
   const handleCreateSession = async () => {
     setCreating(true)
     try {
@@ -60,7 +86,7 @@ export default function AdminScreen({ group, gameSession, onSessionCreated, onNa
       await createSession(group.id, today)
       onSessionCreated()
     } catch (e) {
-      alert('שגיאה ביצירת המשחק: ' + e.message)
+      alert('שגיאה: ' + e.message)
     } finally {
       setCreating(false)
     }
@@ -99,7 +125,6 @@ export default function AdminScreen({ group, gameSession, onSessionCreated, onNa
           <Calendar className="w-4 h-4 text-green-600" />
           ניהול משחק
         </h3>
-
         {gameSession ? (
           <div className="space-y-3">
             <div className="bg-green-50 border border-green-200 rounded-xl p-3">
@@ -125,7 +150,6 @@ export default function AdminScreen({ group, gameSession, onSessionCreated, onNa
                 </div>
               </div>
             </div>
-
             <div className="flex gap-2">
               <button onClick={() => { setNewDate(gameSession.date); setEditingDate(true) }}
                 className="flex-1 flex items-center justify-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 rounded-xl text-sm">
@@ -149,44 +173,39 @@ export default function AdminScreen({ group, gameSession, onSessionCreated, onNa
         )}
       </div>
 
-      {/* Field Attendance */}
+      {/* Tabs */}
       {gameSession && (
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <div className="flex border-b border-gray-100">
             <button onClick={() => setTab('field')}
-              className={`flex-1 py-3 text-sm font-medium transition-colors ${tab === 'field' ? 'text-green-600 border-b-2 border-green-600' : 'text-gray-400'}`}>
-              <MapPin className="w-4 h-4 inline ml-1" />
-              במגרש ({arrivedCount})
+              className={`flex-1 py-3 text-xs font-medium transition-colors ${tab === 'field' ? 'text-green-600 border-b-2 border-green-600' : 'text-gray-400'}`}>
+              <MapPin className="w-3.5 h-3.5 inline ml-1" />במגרש ({arrivedCount})
             </button>
             <button onClick={() => setTab('players')}
-              className={`flex-1 py-3 text-sm font-medium transition-colors ${tab === 'players' ? 'text-green-600 border-b-2 border-green-600' : 'text-gray-400'}`}>
-              <Users className="w-4 h-4 inline ml-1" />
-              קבוצה ({players.length})
+              className={`flex-1 py-3 text-xs font-medium transition-colors ${tab === 'players' ? 'text-green-600 border-b-2 border-green-600' : 'text-gray-400'}`}>
+              <Users className="w-3.5 h-3.5 inline ml-1" />קבוצה ({players.length})
             </button>
           </div>
 
           <div className="p-4">
             {tab === 'field' ? (
               <div className="space-y-3">
-
-                {/* Arrived Players */}
+                {/* Arrived */}
                 {players.filter(p => arrivedIds.has(p.id)).length === 0 ? (
-                  <p className="text-gray-400 text-sm text-center py-2">לחץ "הוסף שחקן" כדי לסמן מי הגיע</p>
+                  <p className="text-gray-400 text-sm text-center py-2">הוסף שחקנים שהגיעו למגרש</p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     {players.filter(p => arrivedIds.has(p.id)).map(p => (
                       <div key={p.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-                        <div className="w-9 h-9 rounded-full bg-green-600 text-white flex items-center justify-center text-sm font-bold">
+                        <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center text-sm font-bold">
                           {p.is_goalkeeper ? '🧤' : p.name[0]}
                         </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-800">{p.name}</p>
-                          {p.is_goalkeeper && <span className="text-xs text-orange-500">שוער</span>}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800 truncate">{p.name}</p>
+                          {p.is_guest && <span className="text-xs text-blue-500">אורח</span>}
                         </div>
-                        <button
-                          onClick={() => handleToggleArrived(p.id, true)}
-                          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-green-100 text-green-700 hover:bg-red-50 hover:text-red-500 transition-colors"
-                        >
+                        <button onClick={() => handleToggleArrived(p.id, true)}
+                          className="px-2 py-1 rounded-lg text-xs font-bold bg-green-100 text-green-700 hover:bg-red-50 hover:text-red-500 whitespace-nowrap">
                           ✓ הגיע
                         </button>
                       </div>
@@ -194,73 +213,93 @@ export default function AdminScreen({ group, gameSession, onSessionCreated, onNa
                   </div>
                 )}
 
-                {/* Add Player Button */}
-                <button
-                  onClick={() => setShowAddPlayer(!showAddPlayer)}
-                  className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-green-300 text-green-600 py-3 rounded-xl text-sm font-medium hover:bg-green-50 transition-colors"
-                >
+                {/* Add from group */}
+                <button onClick={() => { setShowAddPlayer(!showAddPlayer); setShowGuestForm(false) }}
+                  className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-green-300 text-green-600 py-2.5 rounded-xl text-sm font-medium hover:bg-green-50">
                   <UserPlus className="w-4 h-4" />
-                  הוסף שחקן שהגיע למגרש
+                  הוסף שחקן מהקבוצה
                 </button>
 
-                {/* Player Picker */}
                 {showAddPlayer && (
                   <div className="border border-gray-200 rounded-xl overflow-hidden">
                     {notArrivedPlayers.length === 0 ? (
-                      <p className="text-gray-400 text-sm text-center py-4">כל השחקנים כבר סומנו</p>
-                    ) : (
-                      notArrivedPlayers.map(p => (
-                        <button
-                          key={p.id}
-                          onClick={() => handleQuickAdd(p.id)}
-                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-green-50 border-b border-gray-50 last:border-0 transition-colors text-right"
-                        >
-                          <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-sm font-bold">
-                            {p.is_goalkeeper ? '🧤' : p.name[0]}
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-800">{p.name}</p>
-                            <p className="text-xs text-gray-400">גיל {p.age}</p>
-                          </div>
-                          <Plus className="w-4 h-4 text-green-500" />
-                        </button>
-                      ))
-                    )}
+                      <p className="text-gray-400 text-sm text-center py-4">כל השחקנים סומנו</p>
+                    ) : notArrivedPlayers.map(p => (
+                      <button key={p.id} onClick={() => handleQuickAdd(p.id)}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-green-50 border-b border-gray-50 last:border-0 text-right">
+                        <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-sm font-bold">
+                          {p.is_goalkeeper ? '🧤' : p.name[0]}
+                        </div>
+                        <span className="flex-1 text-sm text-gray-800">{p.name}</span>
+                        <Plus className="w-4 h-4 text-green-500" />
+                      </button>
+                    ))}
                   </div>
                 )}
 
-                {/* Go to Teams Button */}
+                {/* Add guest */}
+                <button onClick={() => { setShowGuestForm(!showGuestForm); setShowAddPlayer(false) }}
+                  className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-blue-300 text-blue-600 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-50">
+                  <Plus className="w-4 h-4" />
+                  הוסף אורח (לא במערכת)
+                </button>
+
+                {showGuestForm && (
+                  <div className="border border-blue-200 rounded-xl p-4 bg-blue-50 space-y-3">
+                    <p className="text-sm font-medium text-blue-800">שחקן אורח</p>
+                    <input
+                      type="text"
+                      value={guestName}
+                      onChange={e => setGuestName(e.target.value)}
+                      placeholder="שם השחקן"
+                      className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <div>
+                      <p className="text-xs text-blue-700 mb-1">רמת משחק</p>
+                      <div className="flex gap-1">
+                        {[1,2,3,4,5].map(n => (
+                          <button key={n} onClick={() => setGuestSkill(n)}
+                            className={`flex-1 py-1.5 rounded-lg text-sm font-bold transition-colors ${guestSkill === n ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-blue-200'}`}>
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button onClick={handleAddGuest} disabled={addingGuest || !guestName.trim()}
+                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-sm">
+                      {addingGuest ? 'מוסיף...' : 'הוסף אורח למגרש'}
+                    </button>
+                  </div>
+                )}
+
                 {arrivedCount >= 2 && (
-                  <button
-                    onClick={onNavigateToTeams}
-                    className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 text-base shadow-md active:scale-95 transition-all mt-2"
-                  >
+                  <button onClick={onNavigateToTeams}
+                    className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 text-base shadow-md active:scale-95">
                     <Shuffle className="w-5 h-5" />
                     חלק לקבוצות ({arrivedCount} שחקנים)
                   </button>
                 )}
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {loading ? (
-                  <div className="text-center py-4">
-                    <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                  </div>
+                  <div className="text-center py-4"><div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin mx-auto" /></div>
                 ) : players.map(p => (
                   <div key={p.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold ${
-                      p.is_goalkeeper ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
-                    }`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${p.is_goalkeeper ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
                       {p.is_goalkeeper ? '🧤' : p.name[0]}
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-800">{p.name}</p>
-                      <p className="text-xs text-gray-400">גיל {p.age} · {p.phone}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{p.name}</p>
+                      <p className="text-xs text-gray-400">{p.is_guest ? 'אורח' : `גיל ${p.age}`}</p>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-400">
-                      <span className="flex items-center gap-0.5"><Star className="w-3 h-3 text-yellow-500" />{p.skill_level}</span>
-                      <span className="flex items-center gap-0.5"><Zap className="w-3 h-3 text-blue-500" />{p.fitness_level}</span>
+                    <div className="flex items-center gap-1 text-xs text-gray-400 shrink-0">
+                      <Star className="w-3 h-3 text-yellow-500" />{p.skill_level}
                     </div>
+                    <button onClick={() => handleDeletePlayer(p.id, p.name)}
+                      className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 shrink-0">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 ))}
               </div>

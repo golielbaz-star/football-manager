@@ -19,6 +19,14 @@ export async function getGroupsByCity(city) {
   return data || []
 }
 
+export async function updateGroupRules(groupId, game_rules) {
+  const { error } = await supabase
+    .from('groups')
+    .update({ game_rules })
+    .eq('id', groupId)
+  if (error) throw error
+}
+
 export async function createGroup(groupData) {
   const { data, error } = await supabase
     .from('groups')

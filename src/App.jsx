@@ -11,6 +11,7 @@ import HomeScreen from './components/home/HomeScreen'
 import RSVPScreen from './components/rsvp/RSVPScreen'
 import TeamGenerator from './components/teams/TeamGenerator'
 import AdminScreen from './components/admin/AdminScreen'
+import RulesScreen from './components/rules/RulesScreen'
 import Layout from './components/shared/Layout'
 import BottomNav from './components/shared/BottomNav'
 
@@ -19,6 +20,7 @@ const PAGE_TITLES = {
   rsvp: { title: 'אישורי הגעה', subtitle: 'מי מגיע למשחק?' },
   teams: { title: 'חלוקת קבוצות', subtitle: 'אלגוריתם חכם לאיזון' },
   admin: { title: 'ניהול קבוצה', subtitle: null },
+  rules: { title: 'חוקי המשחק', subtitle: null },
 }
 
 export default function App() {
@@ -168,6 +170,17 @@ export default function App() {
           gameSession={gameSession}
           onSessionCreated={refresh}
           onNavigateToTeams={() => setActivePage('teams')}
+        />
+      )}
+      {activePage === 'rules' && (
+        <RulesScreen
+          group={session.group}
+          isAdmin={session.isAdmin}
+          onGroupUpdated={(updatedGroup) => {
+            const newSession = { ...session, group: updatedGroup }
+            localStorage.setItem('football_session', JSON.stringify(newSession))
+            window.location.reload()
+          }}
         />
       )}
       <BottomNav active={activePage} onNavigate={setActivePage} onLogout={logout} isAdmin={session.isAdmin} />

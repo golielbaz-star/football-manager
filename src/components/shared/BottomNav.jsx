@@ -1,9 +1,10 @@
-import { Home, Calendar, Shuffle, LogOut, Shield } from 'lucide-react'
+import { Home, Calendar, Shuffle, LogOut, Shield, BookOpen } from 'lucide-react'
 
 const tabs = [
   { id: 'home', label: 'בית', icon: Home },
   { id: 'rsvp', label: 'משחק', icon: Calendar },
   { id: 'teams', label: 'קבוצות', icon: Shuffle },
+  { id: 'rules', label: 'חוקים', icon: BookOpen },
 ]
 
 export default function BottomNav({ active, onNavigate, onLogout, isAdmin }) {
