@@ -84,12 +84,11 @@ export default function TeamGenerator({ session, group, rsvps }) {
           <h3 className="font-bold text-gray-800 mb-4">סדר משחקים + שוערים</h3>
           <div className="space-y-3">
             {matches.map((match, i) => {
-              // Sitting team (the one not playing)
               const sittingTeam = teams.find(t => t.id !== match.home.id && t.id !== match.away.id)
 
-              // GK rotation: for sub-keepers, rotate through outfield each match
-              const homeGK = match.home.goalkeeper
-              const awayGK = match.away.goalkeeper
+              // GK rotation per team: sort outfield by skill ASC (weakest first), rotate by match index
+              const homeGK = getRotatingGK(match.home, i)
+              const awayGK = getRotatingGK(match.away, i)
 
               return (
                 <div key={i} className="border border-gray-100 rounded-xl p-3">
@@ -106,29 +105,42 @@ export default function TeamGenerator({ session, group, rsvps }) {
                       <span className="mr-auto text-xs text-gray-400">ממתינה: {sittingTeam.name}</span>
                     )}
                   </div>
-                  <div className="flex gap-3 text-xs text-gray-500">
-                    <span>
-                      🧤 <span className="font-medium text-gray-700">
-                        {homeGK ? homeGK.name : '—'} · שוער {match.home.id}
-                      </span>
-                    </span>
-                    <span>
-                      🧤 <span className="font-medium text-gray-700">
-                        {awayGK ? awayGK.name : '—'} · שוער {match.away.id}
-                      </span>
-                    </span>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-orange-50 rounded-lg px-2 py-1.5">
+                      <span className="text-gray-400">{match.home.name} 🧤</span>
+                      <p className="font-bold text-orange-700">{homeGK?.name || '—'}</p>
+                      <p className="text-orange-400">שוער {match.home.id} · רמה {homeGK?.skill_level}</p>
+                    </div>
+                    <div className="bg-orange-50 rounded-lg px-2 py-1.5">
+                      <span className="text-gray-400">{match.away.name} 🧤</span>
+                      <p className="font-bold text-orange-700">{awayGK?.name || '—'}</p>
+                      <p className="text-orange-400">שוער {match.away.id} · רמה {awayGK?.skill_level}</p>
+                    </div>
                   </div>
                 </div>
               )
             })}
           </div>
           <p className="text-xs text-gray-400 mt-3 text-center">
-            * שוערי תורנות — שחקנים ברמה בינונית (2-3) שסומנו אוטומטית
+            * הסבב מתחיל מהשחקן הכי פחות טוב ועולה בכל משחק
           </p>
         </div>
       )}
     </div>
   )
+}
+
+// GK rotation: if team has dedicated GK use them, otherwise rotate outfield from weakest to strongest
+function getRotatingGK(team, matchIndex) {
+  if (team.goalkeeper && !team.goalkeeper._subKeeper) {
+    return team.goalkeeper // dedicated keeper always plays
+  }
+  // Sort non-dedicated outfield players by skill ASC (weakest first)
+  const outfield = team.players
+    .filter(p => !p.is_goalkeeper)
+    .sort((a, b) => (a.skill_level || 3) - (b.skill_level || 3))
+  if (outfield.length === 0) return team.goalkeeper
+  return outfield[matchIndex % outfield.length]
 }
 
 function TeamCard({ team }) {
