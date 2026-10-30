@@ -22,7 +22,8 @@ export function useAuth() {
     try {
       const result = await loginOrRegister({ phone, adminPhone })
       if (!result.isNew) {
-        const sess = { player: result.player, group: result.group, isAdmin: phone === adminPhone }
+        const isAdmin = result.group.admin_phone === result.player.phone
+        const sess = { player: result.player, group: result.group, isAdmin }
         localStorage.setItem(SESSION_KEY, JSON.stringify(sess))
         setSession(sess)
       }
@@ -40,7 +41,7 @@ export function useAuth() {
     try {
       const player = await registerPlayer(playerData)
       const group = await getGroupByAdminPhone(playerData.adminPhone)
-      const sess = { player, group, isAdmin: playerData.phone === playerData.adminPhone }
+      const sess = { player, group, isAdmin: group.admin_phone === player.phone }
       localStorage.setItem(SESSION_KEY, JSON.stringify(sess))
       setSession(sess)
     } catch (e) {

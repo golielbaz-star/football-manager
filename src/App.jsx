@@ -10,6 +10,7 @@ import CreateGroupForm from './components/auth/CreateGroupForm'
 import HomeScreen from './components/home/HomeScreen'
 import RSVPScreen from './components/rsvp/RSVPScreen'
 import TeamGenerator from './components/teams/TeamGenerator'
+import AdminScreen from './components/admin/AdminScreen'
 import Layout from './components/shared/Layout'
 import BottomNav from './components/shared/BottomNav'
 
@@ -17,6 +18,7 @@ const PAGE_TITLES = {
   home: { title: '⚽ כדורגל שכונתי', subtitle: null },
   rsvp: { title: 'אישורי הגעה', subtitle: 'מי מגיע למשחק?' },
   teams: { title: 'חלוקת קבוצות', subtitle: 'אלגוריתם חכם לאיזון' },
+  admin: { title: 'ניהול קבוצה', subtitle: null },
 }
 
 export default function App() {
@@ -74,7 +76,12 @@ export default function App() {
       localStorage.setItem('football_session', JSON.stringify(sess))
       window.location.reload()
     } catch (e) {
-      setCreateGroupError(e.message || 'שגיאה ביצירת הקבוצה')
+      const msg = e.message || ''
+      if (msg.includes('duplicate') || msg.includes('unique')) {
+        setCreateGroupError('מספר טלפון זה כבר רשום כמנהל קבוצה. נסה להיכנס עם הטלפון שלך.')
+      } else {
+        setCreateGroupError('שגיאה ביצירת הקבוצה, נסה שוב')
+      }
     } finally {
       setCreateGroupLoading(false)
     }
@@ -155,7 +162,14 @@ export default function App() {
           rsvps={rsvps}
         />
       )}
-      <BottomNav active={activePage} onNavigate={setActivePage} onLogout={logout} />
+      {activePage === 'admin' && (
+        <AdminScreen
+          group={session.group}
+          gameSession={gameSession}
+          onSessionCreated={refresh}
+        />
+      )}
+      <BottomNav active={activePage} onNavigate={setActivePage} onLogout={logout} isAdmin={session.isAdmin} />
     </Layout>
   )
 }
