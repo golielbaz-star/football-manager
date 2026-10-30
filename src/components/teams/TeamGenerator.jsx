@@ -35,6 +35,17 @@ export default function TeamGenerator({ session, group, rsvps }) {
 
   const matches = generated ? generateMatchSchedule(teams) : []
 
+  // Build GK rotation per team across all matches they play in
+  const teamMatchesMap = {} // teamId → [matchIndex, ...]
+  if (generated) {
+    matches.forEach((match, i) => {
+      if (!teamMatchesMap[match.home.id]) teamMatchesMap[match.home.id] = []
+      if (!teamMatchesMap[match.away.id]) teamMatchesMap[match.away.id] = []
+      teamMatchesMap[match.home.id].push(i)
+      teamMatchesMap[match.away.id].push(i)
+    })
+  }
+
   return (
     <div className="px-4 pt-4 pb-24 space-y-4">
 
@@ -75,80 +86,87 @@ export default function TeamGenerator({ session, group, rsvps }) {
 
       {/* Team Cards */}
       {generated && teams.map(team => (
-        <TeamCard key={team.id} team={team} />
+        <TeamCard
+          key={team.id}
+          team={team}
+          matchIndices={teamMatchesMap[team.id] || []}
+        />
       ))}
 
-      {/* Match Schedule with GK rotation */}
+      {/* Match Schedule */}
       {generated && matches.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm p-5">
-          <h3 className="font-bold text-gray-800 mb-4">סדר משחקים + שוערים</h3>
-          <div className="space-y-3">
+          <h3 className="font-bold text-gray-800 mb-4">🏆 סדר משחקים</h3>
+          <div className="space-y-4">
             {matches.map((match, i) => {
               const sittingTeam = teams.find(t => t.id !== match.home.id && t.id !== match.away.id)
-
-              // GK rotation per team: sort outfield by skill ASC (weakest first), rotate by match index
-              const homeGK = getRotatingGK(match.home, i)
-              const awayGK = getRotatingGK(match.away, i)
+              const homeMatchIdx = teamMatchesMap[match.home.id]?.indexOf(i) ?? i
+              const awayMatchIdx = teamMatchesMap[match.away.id]?.indexOf(i) ?? i
+              const homeGK = getRotatingGK(match.home, homeMatchIdx)
+              const awayGK = getRotatingGK(match.away, awayMatchIdx)
 
               return (
-                <div key={i} className="border border-gray-100 rounded-xl p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">
+                <div key={i} className="border-2 border-gray-100 rounded-2xl overflow-hidden">
+                  {/* Match header */}
+                  <div className="bg-gray-800 px-4 py-2 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-white text-gray-800 flex items-center justify-center text-xs font-bold">
                       {i + 1}
                     </span>
                     <div className={`w-3 h-3 rounded-full ${match.home.color.badge}`} />
-                    <span className="font-bold text-sm">{match.home.name}</span>
-                    <span className="text-gray-400 text-sm">vs</span>
+                    <span className="font-bold text-white text-sm">{match.home.name}</span>
+                    <span className="text-gray-400 text-sm mx-1">מול</span>
                     <div className={`w-3 h-3 rounded-full ${match.away.color.badge}`} />
-                    <span className="font-bold text-sm">{match.away.name}</span>
+                    <span className="font-bold text-white text-sm">{match.away.name}</span>
                     {sittingTeam && (
-                      <span className="mr-auto text-xs text-gray-400">ממתינה: {sittingTeam.name}</span>
+                      <span className="mr-auto text-xs text-gray-400 bg-gray-700 px-2 py-0.5 rounded-full">
+                        ממתינה: {sittingTeam.name}
+                      </span>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-orange-50 rounded-lg px-2 py-1.5">
-                      <span className="text-gray-400">{match.home.name} 🧤</span>
-                      <p className="font-bold text-orange-700">{homeGK?.name || '—'}</p>
-                      <p className="text-orange-400">שוער {match.home.id} · רמה {homeGK?.skill_level}</p>
+                  {/* GK row */}
+                  <div className="grid grid-cols-2 divide-x divide-x-reverse divide-gray-100">
+                    <div className="px-3 py-2.5">
+                      <p className={`text-xs font-medium mb-0.5 ${match.home.color.text}`}>{match.home.name}</p>
+                      <p className="text-sm font-bold text-gray-800">🧤 {homeGK?.name || '—'}</p>
+                      <p className="text-xs text-gray-400">שוער {homeMatchIdx + 1} בסבב · רמה {homeGK?.skill_level}</p>
                     </div>
-                    <div className="bg-orange-50 rounded-lg px-2 py-1.5">
-                      <span className="text-gray-400">{match.away.name} 🧤</span>
-                      <p className="font-bold text-orange-700">{awayGK?.name || '—'}</p>
-                      <p className="text-orange-400">שוער {match.away.id} · רמה {awayGK?.skill_level}</p>
+                    <div className="px-3 py-2.5">
+                      <p className={`text-xs font-medium mb-0.5 ${match.away.color.text}`}>{match.away.name}</p>
+                      <p className="text-sm font-bold text-gray-800">🧤 {awayGK?.name || '—'}</p>
+                      <p className="text-xs text-gray-400">שוער {awayMatchIdx + 1} בסבב · רמה {awayGK?.skill_level}</p>
                     </div>
                   </div>
                 </div>
               )
             })}
           </div>
-          <p className="text-xs text-gray-400 mt-3 text-center">
-            * הסבב מתחיל מהשחקן הכי פחות טוב ועולה בכל משחק
-          </p>
         </div>
       )}
     </div>
   )
 }
 
-// GK rotation: if team has dedicated GK use them, otherwise rotate outfield from weakest to strongest
-function getRotatingGK(team, matchIndex) {
+// GK rotation: dedicated keeper always plays; otherwise rotate weakest→strongest
+function getRotatingGK(team, matchIndexForThisTeam) {
   if (team.goalkeeper && !team.goalkeeper._subKeeper) {
-    return team.goalkeeper // dedicated keeper always plays
+    return team.goalkeeper
   }
-  // Sort non-dedicated outfield players by skill ASC (weakest first)
   const outfield = team.players
     .filter(p => !p.is_goalkeeper)
     .sort((a, b) => (a.skill_level || 3) - (b.skill_level || 3))
   if (outfield.length === 0) return team.goalkeeper
-  return outfield[matchIndex % outfield.length]
+  return outfield[matchIndexForThisTeam % outfield.length]
 }
 
-function TeamCard({ team }) {
+function TeamCard({ team, matchIndices }) {
   const stats = getTeamStats(team)
-  const gk = team.goalkeeper
+
+  // Build GK rotation list for this team
+  const gkRotation = matchIndices.map((_, idx) => getRotatingGK(team, idx))
 
   return (
     <div className={`bg-white rounded-2xl shadow-sm border-2 ${team.color.border} overflow-hidden`}>
+      {/* Header */}
       <div className={`${team.color.bg} px-5 py-3 flex items-center justify-between`}>
         <h3 className={`font-bold text-lg ${team.color.text}`}>{team.name}</h3>
         <div className="flex items-center gap-3 text-sm">
@@ -159,40 +177,41 @@ function TeamCard({ team }) {
         </div>
       </div>
 
-      {/* Goalkeeper highlight */}
-      {gk && (
+      {/* GK Rotation List */}
+      {gkRotation.length > 0 && (
         <div className="px-4 pt-3 pb-1">
-          <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2">
-            <span className="text-xl">🧤</span>
-            <div className="flex-1">
-              <p className="text-sm font-bold text-orange-800">{gk.name}</p>
-              <p className="text-xs text-orange-500">
-                שוער {team.id}{gk._subKeeper ? ' (תורנות)' : ''}
-              </p>
-            </div>
-            <div className="flex items-center gap-1 text-xs text-orange-400">
-              <Star className="w-3 h-3" />{gk.skill_level}
-            </div>
+          <p className="text-xs font-bold text-gray-500 mb-2">🧤 סדר שוערים</p>
+          <div className="space-y-1">
+            {gkRotation.map((gk, idx) => (
+              <div key={idx} className="flex items-center gap-2 bg-orange-50 rounded-lg px-3 py-1.5">
+                <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center">
+                  {idx + 1}
+                </span>
+                <span className="text-sm font-medium text-orange-800 flex-1">{gk?.name}</span>
+                <span className="text-xs text-orange-400">רמה {gk?.skill_level}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Outfield players */}
-      <div className="p-4 space-y-1">
-        {team.players
-          .filter(p => p.id !== gk?.id)
-          .map(player => (
-            <div key={player.id} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0">
-              <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-sm font-bold">
-                {player.name[0]}
-              </div>
-              <span className="flex-1 text-sm font-medium text-gray-800">{player.name}</span>
-              <div className="flex items-center gap-1 text-xs text-gray-400">
-                <Star className="w-3 h-3 text-yellow-500" />{player.skill_level}
-                <Zap className="w-3 h-3 text-blue-400 mr-1" />{player.fitness_level}
-              </div>
+      {/* Players */}
+      <div className="p-4 pt-3 space-y-1">
+        <p className="text-xs font-bold text-gray-500 mb-2">שחקנים</p>
+        {team.players.map(player => (
+          <div key={player.id} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+              player.is_goalkeeper ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'
+            }`}>
+              {player.is_goalkeeper ? '🧤' : player.name[0]}
             </div>
-          ))}
+            <span className="flex-1 text-sm font-medium text-gray-800">{player.name}</span>
+            <div className="flex items-center gap-1 text-xs text-gray-400">
+              <Star className="w-3 h-3 text-yellow-500" />{player.skill_level}
+              <Zap className="w-3 h-3 text-blue-400 mr-1" />{player.fitness_level}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
