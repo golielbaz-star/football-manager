@@ -9,7 +9,9 @@ export default function TeamGenerator({ session, group, rsvps }) {
   const [loading, setLoading] = useState(false)
 
   const arrivedPlayers = rsvps.filter(r => r.arrived).map(r => r.players).filter(Boolean)
-  const numTeams = Math.min(group.max_teams || 2, Math.floor(arrivedPlayers.length / (group.players_per_team || 5)) || 2)
+  const playersPerTeam = group.players_per_team || 5
+  const maxTeams = group.max_teams || 4
+  const numTeams = Math.min(maxTeams, Math.max(2, Math.ceil(arrivedPlayers.length / playersPerTeam)))
 
   const handleGenerate = () => {
     if (arrivedPlayers.length < 2) return
