@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
-import { Users, Plus, Calendar, Shield, Star, Zap, Trash2 } from 'lucide-react'
+import { Users, Plus, Calendar, Star, Zap, Trash2, Edit2, Check, X } from 'lucide-react'
 import { getPlayersByGroup } from '../../services/playerService'
-import { createSession, getUpcomingSession } from '../../services/sessionService'
+import { createSession, updateSessionDate, deleteSession } from '../../services/sessionService'
 
 export default function AdminScreen({ group, gameSession, onSessionCreated }) {
   const [players, setPlayers] = useState([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
+  const [editingDate, setEditingDate] = useState(false)
+  const [newDate, setNewDate] = useState('')
+  const [savingDate, setSavingDate] = useState(false)
 
   useEffect(() => {
     if (!group?.admin_phone) return
@@ -20,13 +23,36 @@ export default function AdminScreen({ group, gameSession, onSessionCreated }) {
     setCreating(true)
     try {
       const today = new Date().toISOString().split('T')[0]
-      // Find next game day
       const session = await createSession(group.id, today)
-      onSessionCreated(session)
+      onSessionCreated()
     } catch (e) {
       alert('שגיאה ביצירת המשחק: ' + e.message)
     } finally {
       setCreating(false)
+    }
+  }
+
+  const handleDeleteSession = async () => {
+    if (!confirm('למחוק את המשחק הנוכחי?')) return
+    try {
+      await deleteSession(gameSession.id)
+      onSessionCreated()
+    } catch (e) {
+      alert('שגיאה במחיקה: ' + e.message)
+    }
+  }
+
+  const handleSaveDate = async () => {
+    if (!newDate) return
+    setSavingDate(true)
+    try {
+      await updateSessionDate(gameSession.id, newDate)
+      setEditingDate(false)
+      onSessionCreated()
+    } catch (e) {
+      alert('שגיאה בשמירה: ' + e.message)
+    } finally {
+      setSavingDate(false)
     }
   }
 
@@ -41,21 +67,58 @@ export default function AdminScreen({ group, gameSession, onSessionCreated }) {
         </h3>
 
         {gameSession ? (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-green-800">משחק פעיל</p>
-                <p className="text-sm text-green-600">
-                  {new Date(gameSession.date).toLocaleDateString('he-IL', {
-                    weekday: 'long', day: 'numeric', month: 'long'
-                  })}
-                </p>
+          <div className="space-y-3">
+            <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-green-800">משחק פתוח</p>
+                  {editingDate ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="date"
+                        value={newDate}
+                        onChange={e => setNewDate(e.target.value)}
+                        className="text-sm border border-green-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                      <button onClick={handleSaveDate} disabled={savingDate} className="text-green-600 hover:text-green-800">
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => setEditingDate(false)} className="text-gray-400 hover:text-gray-600">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-green-600">
+                      {new Date(gameSession.date).toLocaleDateString('he-IL', {
+                        weekday: 'long', day: 'numeric', month: 'long'
+                      })}
+                    </p>
+                  )}
+                </div>
+                <span className="bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                  מתוכנן
+                </span>
               </div>
-              <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                gameSession.status === 'active' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'
-              }`}>
-                {gameSession.status === 'active' ? 'פעיל' : 'מתוכנן'}
-              </span>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setNewDate(gameSession.date)
+                  setEditingDate(true)
+                }}
+                className="flex-1 flex items-center justify-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 rounded-xl text-sm transition-colors"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                שנה תאריך
+              </button>
+              <button
+                onClick={handleDeleteSession}
+                className="flex-1 flex items-center justify-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 font-medium py-2 rounded-xl text-sm transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                מחק משחק
+              </button>
             </div>
           </div>
         ) : (
@@ -71,7 +134,7 @@ export default function AdminScreen({ group, gameSession, onSessionCreated }) {
               ) : (
                 <Plus className="w-4 h-4" />
               )}
-              פתח משחק לשבוע הקרוב
+              פתח משחק
             </button>
           </div>
         )}
@@ -104,14 +167,13 @@ export default function AdminScreen({ group, gameSession, onSessionCreated }) {
         )}
       </div>
 
-      {/* Share Info */}
+      {/* Share Code */}
       <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-        <p className="text-sm font-medium text-blue-800 mb-1">שיתוף קוד הצטרפות</p>
+        <p className="text-sm font-medium text-blue-800 mb-1">קוד הצטרפות לקבוצה</p>
         <p className="text-xs text-blue-600 mb-2">שלח לשחקנים את הטלפון שלך:</p>
         <div className="bg-white rounded-lg px-3 py-2 text-center font-bold text-blue-700 text-lg tracking-wider border border-blue-200">
           {group.admin_phone}
         </div>
-        <p className="text-xs text-blue-500 mt-2 text-center">זהו קוד הקבוצה שלך</p>
       </div>
 
     </div>

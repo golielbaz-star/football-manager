@@ -1,11 +1,12 @@
-import { useState } from 'react'
-import { MapPin, Calendar, Clock, Users, Search, Phone, Trophy } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { MapPin, Calendar, Clock, Users, Search, Phone, Trophy, Star, Zap } from 'lucide-react'
 import { getGroupsByCity } from '../../services/groupService'
+import { getPlayersByGroup } from '../../services/playerService'
 
 const DAY_HEBREW = { 'ראשון': 0, 'שני': 1, 'שלישי': 2, 'רביעי': 3, 'חמישי': 4, 'שישי': 5, 'שבת': 6 }
 
 function daysUntilGame(gameDay) {
-  const today = new Date().getDay() // 0=Sun
+  const today = new Date().getDay()
   const target = DAY_HEBREW[gameDay] ?? 0
   const diff = (target - today + 7) % 7
   return diff === 0 ? 7 : diff
@@ -15,6 +16,12 @@ export default function HomeScreen({ session, upcomingSession, rsvps, onNavigate
   const { group, player } = session
   const attending = rsvps.filter(r => r.attending).length
   const daysLeft = daysUntilGame(group.game_day)
+  const [players, setPlayers] = useState([])
+
+  useEffect(() => {
+    if (!group?.admin_phone) return
+    getPlayersByGroup(group.admin_phone).then(setPlayers)
+  }, [group?.admin_phone])
 
   return (
     <div className="px-4 pt-4 pb-24 space-y-4">
@@ -62,6 +69,47 @@ export default function HomeScreen({ session, upcomingSession, rsvps, onNavigate
         >
           אישור הגעה
         </button>
+      </div>
+
+      {/* Players List */}
+      <div className="bg-white rounded-2xl shadow-sm p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-bold text-gray-800 flex items-center gap-2">
+            <Users className="w-4 h-4 text-green-600" />
+            שחקני הקבוצה
+          </h3>
+          <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full">
+            {players.length}
+          </span>
+        </div>
+
+        {players.length === 0 ? (
+          <p className="text-gray-400 text-sm text-center py-2">אין שחקנים רשומים עדיין</p>
+        ) : (
+          <div className="space-y-2">
+            {players.map(p => (
+              <div key={p.id} className="flex items-center gap-3 py-1.5 border-b border-gray-50 last:border-0">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                  p.is_goalkeeper ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
+                }`}>
+                  {p.is_goalkeeper ? '🧤' : p.name[0]}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-800">{p.name}</p>
+                  <p className="text-xs text-gray-400">גיל {p.age}</p>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <span className="flex items-center gap-0.5">
+                    <Star className="w-3 h-3 text-yellow-500" />{p.skill_level}
+                  </span>
+                  <span className="flex items-center gap-0.5">
+                    <Zap className="w-3 h-3 text-blue-500" />{p.fitness_level}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* City Search */}

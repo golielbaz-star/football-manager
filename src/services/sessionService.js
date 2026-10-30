@@ -30,3 +30,19 @@ export async function updateSessionStatus(sessionId, status) {
     .eq('id', sessionId)
   if (error) throw error
 }
+
+export async function updateSessionDate(sessionId, date) {
+  const { error } = await supabase
+    .from('game_sessions')
+    .update({ date })
+    .eq('id', sessionId)
+  if (error) throw error
+}
+
+export async function deleteSession(sessionId) {
+  const { error } = await supabase
+    .from('game_sessions')
+    .delete()
+    .eq('id', sessionId)
+  if (error) throw error
+}
