@@ -167,6 +167,7 @@ export default function App() {
           group={session.group}
           gameSession={gameSession}
           onSessionCreated={refresh}
+          onNavigateToTeams={() => setActivePage('teams')}
         />
       )}
       <BottomNav active={activePage} onNavigate={setActivePage} onLogout={logout} isAdmin={session.isAdmin} />
