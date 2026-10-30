@@ -47,7 +47,11 @@ export default function HomeScreen({ session, upcomingSession, rsvps, onNavigate
         <div className="grid grid-cols-2 gap-3">
           <div className="flex items-center gap-2 text-gray-600">
             <Calendar className="w-4 h-4 text-green-600" />
-            <span className="text-sm">יום {group.game_day}</span>
+            <span className="text-sm">
+              {upcomingSession
+                ? new Date(upcomingSession.date).toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })
+                : `יום ${group.game_day}`}
+            </span>
           </div>
           <div className="flex items-center gap-2 text-gray-600">
             <Clock className="w-4 h-4 text-green-600" />
@@ -55,7 +59,7 @@ export default function HomeScreen({ session, upcomingSession, rsvps, onNavigate
           </div>
           <div className="flex items-center gap-2 text-gray-600">
             <Users className="w-4 h-4 text-green-600" />
-            <span className="text-sm">{attending} מגיעים</span>
+            <span className="text-sm font-bold text-green-700">{attending} נרשמו</span>
           </div>
           <div className="flex items-center gap-2 text-gray-600">
             <Trophy className="w-4 h-4 text-green-600" />
@@ -63,12 +67,18 @@ export default function HomeScreen({ session, upcomingSession, rsvps, onNavigate
           </div>
         </div>
 
-        <button
-          onClick={() => onNavigate('rsvp')}
-          className="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors"
-        >
-          אישור הגעה
-        </button>
+        {upcomingSession ? (
+          <button
+            onClick={() => onNavigate('rsvp')}
+            className="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors"
+          >
+            אישור הגעה
+          </button>
+        ) : (
+          <div className="mt-4 bg-gray-50 rounded-xl py-3 text-center text-sm text-gray-400">
+            המנהל טרם פתח משחק
+          </div>
+        )}
       </div>
 
       {/* Players List */}
