@@ -108,15 +108,13 @@ export default function TeamGenerator({ session, group, rsvps }) {
                   </div>
                   <div className="flex gap-3 text-xs text-gray-500">
                     <span>
-                      🧤 {match.home.name}: <span className="font-medium text-gray-700">
-                        {homeGK ? homeGK.name : '—'}
-                        {homeGK?._subKeeper ? ' (תורנות)' : ''}
+                      🧤 <span className="font-medium text-gray-700">
+                        {homeGK ? homeGK.name : '—'} · שוער {match.home.id}
                       </span>
                     </span>
                     <span>
-                      🧤 {match.away.name}: <span className="font-medium text-gray-700">
-                        {awayGK ? awayGK.name : '—'}
-                        {awayGK?._subKeeper ? ' (תורנות)' : ''}
+                      🧤 <span className="font-medium text-gray-700">
+                        {awayGK ? awayGK.name : '—'} · שוער {match.away.id}
                       </span>
                     </span>
                   </div>
@@ -157,7 +155,7 @@ function TeamCard({ team }) {
             <div className="flex-1">
               <p className="text-sm font-bold text-orange-800">{gk.name}</p>
               <p className="text-xs text-orange-500">
-                {gk._subKeeper ? `שוער תורנות · רמה ${gk.skill_level}` : 'שוער'}
+                שוער {team.id}{gk._subKeeper ? ' (תורנות)' : ''}
               </p>
             </div>
             <div className="flex items-center gap-1 text-xs text-orange-400">
