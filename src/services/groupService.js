@@ -13,7 +13,7 @@ export async function getGroupByAdminPhone(adminPhone) {
 export async function getGroupsByCity(city) {
   const { data, error } = await supabase
     .from('groups')
-    .select('*, game_sessions(id, date, status)')
+    .select('*, game_sessions(id, date, status), players(id)')
     .ilike('city', `%${city}%`)
   if (error) throw error
 
@@ -27,7 +27,8 @@ export async function getGroupsByCity(city) {
     const nextSession = sessions
       .filter(s => s.date >= today && ['upcoming', 'active'].includes(s.status))
       .sort((a, b) => a.date.localeCompare(b.date))[0] || null
-    return { ...group, lastSession, nextSession }
+    const playerCount = (group.players || []).filter(p => !p.is_guest).length
+    return { ...group, lastSession, nextSession, playerCount }
   })
 }
 

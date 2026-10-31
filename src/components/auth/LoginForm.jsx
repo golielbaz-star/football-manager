@@ -205,7 +205,7 @@ export default function LoginForm({ onLogin, loading, error, onCreateGroup }) {
                               {group.location_name}, {group.city}
                             </p>
                             <p className="text-xs text-gray-400">
-                              יום {group.game_day} · {group.game_time}
+                              יום {group.game_day} · {group.game_time} · 👥 {group.playerCount} שחקנים
                             </p>
                             <div className="mt-1.5 space-y-0.5">
                               {group.nextSession && (
