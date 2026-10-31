@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Users, Plus, Calendar, Star, Zap, Trash2, Edit2, Check, X, MapPin, Shuffle, UserPlus } from 'lucide-react'
-import { getPlayersByGroup, addGuestPlayer, deletePlayer } from '../../services/playerService'
+import { getPlayersByGroup, addGuestPlayer, deletePlayer, removeInactivePlayers } from '../../services/playerService'
 import { createSession, updateSessionDate, deleteSession } from '../../services/sessionService'
 import { getRSVPs, markArrived, upsertRSVP } from '../../services/rsvpService'
 
@@ -18,6 +18,7 @@ export default function AdminScreen({ group, gameSession, onSessionCreated, onNa
   const [guestSkill, setGuestSkill] = useState(3)
   const [addingGuest, setAddingGuest] = useState(false)
   const [tab, setTab] = useState('field')
+  const [removedPlayers, setRemovedPlayers] = useState([])
 
   const loadData = async () => {
     if (!group?.admin_phone) return
@@ -29,6 +30,18 @@ export default function AdminScreen({ group, gameSession, onSessionCreated, onNa
     setRsvps(r)
     setLoading(false)
   }
+
+  useEffect(() => {
+    if (!group?.admin_phone || !group?.id) return
+    removeInactivePlayers({ adminPhone: group.admin_phone, groupId: group.id })
+      .then(removed => {
+        if (removed.length > 0) {
+          setRemovedPlayers(removed)
+          loadData()
+        }
+      })
+      .catch(() => {}) // silent fail
+  }, [group?.id])
 
   useEffect(() => { loadData() }, [group?.admin_phone, gameSession?.id])
 
@@ -118,6 +131,23 @@ export default function AdminScreen({ group, gameSession, onSessionCreated, onNa
 
   return (
     <div className="px-4 pt-4 pb-24 space-y-4">
+
+      {/* Inactive players removed notice */}
+      {removedPlayers.length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex items-start gap-3">
+          <span className="text-xl shrink-0">⚠️</span>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-orange-800">
+              {removedPlayers.length} שחקנים הוסרו אוטומטית
+            </p>
+            <p className="text-xs text-orange-600 mt-0.5">
+              לא הגיעו פיזית ב-3 השבועות האחרונים: {removedPlayers.map(p => p.name).join(', ')}
+            </p>
+            <p className="text-xs text-orange-500 mt-1">יצטרכו להירשם מחדש דרך האפליקציה.</p>
+          </div>
+          <button onClick={() => setRemovedPlayers([])} className="text-orange-400 hover:text-orange-600 shrink-0">✕</button>
+        </div>
+      )}
 
       {/* Game Session */}
       <div className="bg-white rounded-2xl shadow-sm p-5">
