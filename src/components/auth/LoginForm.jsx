@@ -189,22 +189,39 @@ export default function LoginForm({ onLogin, loading, error, onCreateGroup }) {
                         onClick={() => handleSelectGroup(group)}
                         className="w-full bg-gray-50 hover:bg-green-50 border border-gray-200 hover:border-green-400 rounded-xl p-3 text-right transition-colors"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-lg shrink-0">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-lg shrink-0 mt-0.5">
                             ⚽
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-bold text-gray-800 text-sm">{group.admin_name}</p>
-                            <p className="text-xs text-gray-500">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="font-bold text-gray-800 text-sm">{group.admin_name}</p>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${group.nextSession ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                                {group.nextSession ? 'פעילה' : 'לא פעילה'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-0.5">
                               <MapPin className="w-3 h-3 inline ml-0.5" />
                               {group.location_name}, {group.city}
                             </p>
                             <p className="text-xs text-gray-400">
                               יום {group.game_day} · {group.game_time}
                             </p>
-                          </div>
-                          <div className="text-xs text-green-600 font-medium shrink-0">
-                            הצטרף
+                            <div className="mt-1.5 space-y-0.5">
+                              {group.nextSession && (
+                                <p className="text-xs text-green-600 font-medium">
+                                  🗓️ משחק קרוב: {new Date(group.nextSession.date).toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                </p>
+                              )}
+                              {group.lastSession && (
+                                <p className="text-xs text-gray-400">
+                                  ⏱️ משחק אחרון: {new Date(group.lastSession.date).toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                </p>
+                              )}
+                              {!group.nextSession && !group.lastSession && (
+                                <p className="text-xs text-gray-400">עדיין לא שיחקו</p>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </button>

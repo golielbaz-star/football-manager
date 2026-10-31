@@ -13,10 +13,22 @@ export async function getGroupByAdminPhone(adminPhone) {
 export async function getGroupsByCity(city) {
   const { data, error } = await supabase
     .from('groups')
-    .select('*')
+    .select('*, game_sessions(id, date, status)')
     .ilike('city', `%${city}%`)
   if (error) throw error
-  return data || []
+
+  const today = new Date().toISOString().split('T')[0]
+
+  return (data || []).map(group => {
+    const sessions = group.game_sessions || []
+    const lastSession = sessions
+      .filter(s => s.date < today)
+      .sort((a, b) => b.date.localeCompare(a.date))[0] || null
+    const nextSession = sessions
+      .filter(s => s.date >= today && ['upcoming', 'active'].includes(s.status))
+      .sort((a, b) => a.date.localeCompare(b.date))[0] || null
+    return { ...group, lastSession, nextSession }
+  })
 }
 
 export async function updateGroupRules(groupId, game_rules) {
